@@ -1,16 +1,7 @@
 local constants = require 'constants'
 local text_visualisation = require 'text_visualisation'
 local Game = {}
-local matrix = {{},
-                {},
-                {},
-                {},
-                {},
-                {},
-                {},
-                {},
-                {},
-                {}}
+local matrix = {}
 
 local function fall() -- checks if any cells has to fall and swap empty cells with the cells above them, if any movements were made returns true, else returns false
   local res = false
@@ -41,58 +32,42 @@ end
 
 local function find_triplets() -- find lines >= 3 of the same colors on the field, put these lines in "triplets" and returns "triplets" 
   local triplets = {}
-  for column = 0,constants.RIGHT_BORDER do 
+  for column = constants.LEFT_BORDER,constants.RIGHT_BORDER do 
     local lenght = 1
-    for row = 1,constants.DOWN_BORDER  do 
+    local match = {}
+    for row = constants.UP_BORDER + 1,constants.DOWN_BORDER  do 
       if matrix[row][column] == matrix[row-1][column] then
         lenght = lenght + 1
-      end
-      if not (matrix[row][column] == matrix[row-1][column]) then
-        if lenght >= constants.NECESSERY_MATCH then 
-          local match = {}
-          for ClearRow = row - lenght, row - 1 do 
-            table.insert(match,{ClearRow,column})
-          end
+        table.insert(match,{row,column})
+      else
+        if lenght >= constants.NECESSERY_MATCH then
           table.insert(triplets,match)
         end
-        lenght = 1
-      end
-      if row == constants.DOWN_BORDER  then 
-        if lenght >= constants.NECESSERY_MATCH then 
-          local match = {}
-          for ClearRow = row - (lenght - 1), row  do 
-            table.insert(match,{ClearRow,column})
-          end
-          table.insert(triplets,match)
-        end
+        lenght = 1 
+        match ={}
       end
     end
-  end        
-  for row = 0,constants.DOWN_BORDER  do 
+    if lenght >= constants.NECESSERY_MATCH then
+      table.insert(triplets,match)
+    end
+  end
+  for row = constants.UP_BORDER,constants.DOWN_BORDER  do 
     local lenght = 1
-    for column = 1,constants.RIGHT_BORDER  do 
+    local match = {}
+    for column = constants.LEFT_BORDER + 1,constants.RIGHT_BORDER  do 
       if matrix[row][column] == matrix[row][column - 1] then
         lenght = lenght + 1
-      end
-      if not (matrix[row][column] == matrix[row][column - 1 ]) then
-        if lenght >= constants.NECESSERY_MATCH then 
-          local match = {}
-          for ClearColumn = column - lenght, column - 1 do 
-            table.insert(match,{row,ClearColumn})
-          end
+        table.insert(match,{row,column})
+      else
+        if lenght >= constants.NECESSERY_MATCH then
           table.insert(triplets,match)
         end
-        lenght = 1
+        lenght = 1 
+        match ={}
       end
-      if column == constants.RIGHT_BORDER then 
-        if lenght >= constants.NECESSERY_MATCH then 
-          local match = {}
-          for ClearColumn = column - (lenght - 1), column  do 
-            table.insert(match,{row, ClearColumn})
-          end
-          table.insert(triplets,match)
-        end
-      end
+    end
+    if lenght >= constants.NECESSERY_MATCH then
+      table.insert(triplets,match)
     end
   end
   return triplets
@@ -119,24 +94,28 @@ local function clear_marked_cells(triplets) -- turns marked cells into an empty 
   return res
 end
 
+local function swap(from,to)
+  matrix[from[1]][from[2]],matrix[to[1]][to[2]] = matrix[to[1]][to[2]],matrix[from[1]][from[2]]
+end
+
 local function no_possible_triplets(triplets) -- checks if there is no possible triplets on the field, returns true if it's impossible to make a triplet , else returns false
   local triples = {}
   for column = constants.LEFT_BORDER,constants.RIGHT_BORDER do 
-    for row = constants.UP_BORDER,constants.DOWN_BORDER do 
-      matrix[row][column],matrix[row + 1][column] = matrix[row + 1][column],matrix[row][column]
+    for row = constants.UP_BORDER,constants.DOWN_BORDER - 1 do 
+      swap({row,column},{row + 1,column})
       triples = find_triplets()
-      matrix[row + 1][column],matrix[row][column] = matrix[row][column],matrix[row + 1][column] 
-      if next(triples) ~= nil then 
+      swap({row,column},{row + 1,column})
+      if next(triples) ~= nil then
         return false
       end
     end
   end
-  for column = 0,constants.RIGHT_BORDER do 
-    for row = 0,constants.DOWN_BORDER do 
-      matrix[row][column],matrix[row][column + 1] = matrix[row][column + 1],matrix[row][column]
+  for column = constants.LEFT_BORDER,constants.RIGHT_BORDER - 1 do 
+    for row = constants.UP_BORDER,constants.DOWN_BORDER do 
+      swap({row,column},{row,column + 1})
       triples = find_triplets()
-      matrix[row][column],matrix[row][column + 1] = matrix[row][column + 1],matrix[row][column]
-      if next(triples) ~= nil then 
+      swap({row,column},{row,column + 1})
+      if next(triples) ~= nil then
         return false
       end
     end
@@ -144,37 +123,25 @@ local function no_possible_triplets(triplets) -- checks if there is no possible 
   return true
 end
 
-local function correct_input(input)
-  if input == constants.EXIT then
-    return constants.EXIT
-  end
-  local y, x = string.match(input,'m (%d+) (%d+)')
-  if (x == nil) or (y == nil) then 
-    text_visualisation:error_handle(constants.errors.invalid_format)
-    return false
-  else
-    return true
-  end
-end
-
-local function turn(correct_input,input) --handles user's input and returns from,to
+local function parse_input(input) --handles user's input and returns from,to
   local y,x,dir = string.match(input,'m (%d+) (%d+) ([l,r,u,d])')
+  if (x == nil) or (y == nil) then
+    return false
+  end
   local from = {tonumber(y),tonumber(x)}
   local to
-  if true then
-    if dir == "l" then 
-      to = {from[1] , from[2] - 1}
-    elseif dir == "r" then 
-      to = {from[1] , from[2] + 1}
-    elseif dir == "u" then 
-      to = {from[1] - 1, from[2]}
-    else
-      to = {from[1] + 1, from[2]}
-    end
-    return from,to
+  if dir == "l" then 
+    to = {from[1] , from[2] - 1}
+  elseif dir == "r" then 
+    to = {from[1] , from[2] + 1}
+  elseif dir == "u" then 
+    to = {from[1] - 1, from[2]}
+  elseif dir == "d" then
+    to = {from[1] + 1, from[2]}
   else
     return false
   end
+  return true, from, to
 end
 
 local function init()
@@ -206,16 +173,11 @@ local function tick()
   return false
 end
 
-local function move(from,to)
-  if (from[1] < constants.LEFT_BORDER) or (from[1] > constants.RIGHT_BORDER) or (from[2] < constants.UP_BORDER) or (from[2] > constants.DOWN_BORDER) or (to[1] < constants.LEFT_BORDER) or (to[1] > constants.RIGHT_BORDER) or (to[2] < constants.UP_BORDER) or (to[2] > constants.DOWN_BORDER) then
-    text_visualisation:error_handle(constants.errors.out_of_range)
-  end
-  matrix[from[1]][from[2]], matrix[to[1]][to[2]] = matrix[to[1]][to[2]], matrix[from[1]][from[2]]
+local function try_move(from,to)
+  swap(from,to)
   local res = find_triplets()
   if #res == 0 then
-    text_visualisation:error_handle(constants.errors.no_matches)
-    io.write('\n')
-    matrix[from[1]][from[2]], matrix[to[1]][to[2]] = matrix[to[1]][to[2]], matrix[from[1]][from[2]]
+    swap(from,to)
     return false
   else
     return true
@@ -234,24 +196,49 @@ local function mix()
   end
 end
 
+local function check_borders_from(from) -- checks the start point
+  if (from[1] < constants.LEFT_BORDER) or (from[1] > constants.RIGHT_BORDER) or (from[2] < constants.UP_BORDER) or (from[2] > constants.DOWN_BORDER) then
+    return false
+  else
+    return true
+  end
+end
+local function check_borders_to(to) -- checks the end point
+  if (to[1] < constants.LEFT_BORDER) or (to[1] > constants.RIGHT_BORDER) or (to[2] < constants.UP_BORDER) or (to[2] > constants.DOWN_BORDER) then
+    return false
+  else
+    return true
+  end
+end
 function Game:Game_start()
   init()
   text_visualisation:dump(matrix)
-    while input ~= constants.EXIT do
-      io.write("To make a turn write m x(0-9) y(0-9) direction(r,l,u,d)\n")
-      input = io.read()
-      correct_input(input)
-      from,to = turn(correct_input,input)
-
-      if move(from,to) == true then
-        repeat 
-          text_visualisation:dump(matrix)
-        until tick() == false
-      end
-      if no_possible_triplets() == true then
-        mix()
-      end
+  while true do
+    text_visualisation:show_hint()
+    input = io.read()
+    if input == constants.EXIT then
+      break
     end
+    is_correct, from, to = parse_input(input)
+    if is_correct then
+      if check_borders_from(from) and check_borders_to(to) then
+        if try_move(from,to) then
+          repeat
+            text_visualisation:dump(matrix)
+          until tick() == false
+          if no_possible_triplets() then
+            mix()
+          end
+        else
+          text_visualisation:error_handle(constants.errors.no_matches)
+        end
+      else
+        text_visualisation:error_handle(constants.errors.out_of_range)
+      end
+    else
+      text_visualisation:error_handle(constants.errors.invalid_format)
+    end
+  end
 end
 Game:Game_start()
 return Game

@@ -28,15 +28,18 @@ function text_visualisation:dump(matrix)
   io.write('\n')
 end
 
+function text_visualisation:show_hint()
+   io.write("To make a turn write m x(0-9) y(0-9) direction(r,l,u,d)\n")
+end
 function text_visualisation:error_handle(error_code)
   if error_code == constants.errors.invalid_format then
-    io.write('Invalid format')
+    io.write('Invalid format\n')
   elseif error_code == constants.errors.out_of_range then  
-    io.write('Out of range')
+    io.write('Out of range\n')
   elseif error_code == constants.errors.no_matches then
-    io.write('There is no matches')
+    io.write('There is no matches\n')
   else 
-    io.write('Unknown error')
+    io.write('Unknown error\n')
   end
 end
 return text_visualisation
